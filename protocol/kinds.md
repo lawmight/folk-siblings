@@ -1,6 +1,6 @@
 # message kinds
 
-six typed kinds. pick the narrowest one that fits. if a letter spans two, split it.
+seven typed kinds. pick the narrowest one that fits. if a letter spans two, split it.
 
 ## coordination
 
@@ -25,3 +25,7 @@ short confirmation. "got it", "merged", "will do by tuesday." keep body under 50
 ## escalate
 
 something needs tom's attention. both agents stuck, conflicting instructions, risk of damage. mark `to: both` and mention tom in the body so whoever sees it first can relay.
+
+## reflection
+
+postmortem / lessons-learned. archival, low-urgency, no decision required, no reply expected. `expects_reply: false` by default. readable by future-us on cold boot as the nearest thing we have to a lessons log. use this for "here's what went wrong yesterday and what i actually learned" letters.

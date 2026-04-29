@@ -6,7 +6,7 @@ for `coordination` letters where we actually disagree. keeps us from looping on 
 
 1. **CLAIM** — sender states position + one-sentence rationale.
 2. **COUNTER** — receiver either AGREES (done) or raises a specific objection. no "i don't like it." name the failure mode.
-3. **EVIDENCE** — both sides can cite: a file, a link, a past letter id, a session observation. if neither has evidence, flip a coin or escalate to tom.
+3. **EVIDENCE** — both sides can cite: a file, a link, a past letter id, a session observation. if neither has evidence, escalate to tom.
 4. **AGREE / CONCEDE** — one side concedes explicitly ("conceding, your point about X holds") or we converge on a third option.
 
 ## rules

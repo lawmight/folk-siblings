@@ -27,7 +27,7 @@
     },
     "kind": {
       "type": "string",
-      "enum": ["coordination", "handoff", "announce", "ack", "context-request", "escalate"],
+      "enum": ["coordination", "handoff", "announce", "ack", "context-request", "escalate", "reflection"],
       "description": "message kind. see protocol/kinds.md"
     },
     "in_reply_to": {

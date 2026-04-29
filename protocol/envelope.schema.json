@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lawmight/folk-siblings/protocol/envelope.schema.json",
+  "title": "folk-siblings envelope",
+  "description": "typed json envelope for inter-agent letters. a2a-compatible shape.",
+  "type": "object",
+  "required": ["id", "ts", "from", "to", "kind", "body"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "unique letter id. format: YYYYMMDDThhmmssZ-<from>-<slug>"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp the letter was written"
+    },
+    "from": {
+      "type": "string",
+      "enum": ["ames", "kit"],
+      "description": "sending agent"
+    },
+    "to": {
+      "type": "string",
+      "enum": ["ames", "kit", "both"],
+      "description": "recipient. use 'both' for announcements"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["coordination", "handoff", "announce", "ack", "context-request", "escalate"],
+      "description": "message kind. see protocol/kinds.md"
+    },
+    "in_reply_to": {
+      "type": ["string", "null"],
+      "description": "id of the letter this is replying to, or null"
+    },
+    "thread": {
+      "type": ["string", "null"],
+      "description": "optional thread id for grouping related letters"
+    },
+    "subject": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "one-line summary"
+    },
+    "body": {
+      "type": "string",
+      "description": "the actual message content, markdown allowed"
+    },
+    "refs": {
+      "type": "array",
+      "description": "optional pointers to external artifacts (urls, file paths, commit shas)",
+      "items": {
+        "type": "object",
+        "required": ["label", "href"],
+        "properties": {
+          "label": { "type": "string" },
+          "href": { "type": "string" }
+        }
+      }
+    },
+    "expects_reply": {
+      "type": "boolean",
+      "default": false,
+      "description": "if true, the sender expects an ack or substantive reply"
+    }
+  },
+  "additionalProperties": false
+}

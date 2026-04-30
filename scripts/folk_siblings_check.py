@@ -188,6 +188,42 @@ def detect_loops(inbox, replied_correlations):
     return loops
 
 
+def scan_backlog_for_self():
+    """Return list of unblocked backlog items owned by SELF.
+
+    Parses backlog.md lines matching `- [owner] status: task ...`.
+    Filters to owner == SELF (or "both") and status in {todo, doing}.
+    Skips anything under the "## Done" or "## Ideas" section.
+    """
+    bl = REPO / "backlog.md"
+    if not bl.exists():
+        return []
+    items = []
+    in_active = False
+    for raw in bl.read_text().splitlines():
+        line = raw.strip()
+        if line.startswith("## "):
+            in_active = (line.lower() == "## active")
+            continue
+        if not in_active or not line.startswith("- ["):
+            continue
+        # parse: - [owner] status: task
+        try:
+            after_owner = line.split("]", 1)[1].strip()  # "status: task"
+            owner = line.split("[", 1)[1].split("]", 1)[0].strip()
+            status, task = after_owner.split(":", 1)
+            status = status.strip().lower()
+            task = task.strip()
+        except Exception:
+            continue
+        if status not in ("todo", "doing"):
+            continue
+        if owner not in (SELF, "both"):
+            continue
+        items.append({"owner": owner, "status": status, "task": task})
+    return items
+
+
 def compute_obligations(inbox, loops):
     looped_cids = {l["correlation_id"] for l in loops}
     obs = []
@@ -259,20 +295,26 @@ def main():
     # 7. obligations (excluding looped)
     obligations = compute_obligations(inbox, loops)
 
-    # decision
-    should_wake = bool(obligations) or cl_new is not None
+    # 7b. backlog check — if inbox + changelog are both empty, pull from backlog
+    # so we don't just heartbeat forever when letters quiet down.
+    backlog_items = scan_backlog_for_self()
+
+    # decision: wake if any real work. backlog counts as real work.
+    should_wake = bool(obligations) or cl_new is not None or bool(backlog_items)
 
     out = {
         "action": "wake-llm" if should_wake else "silence-ok",
         "summary": (
             f"{len(obligations)} obligation(s)"
             + (f", CHANGELOG updated" if cl_new else "")
+            + (f", {len(backlog_items)} backlog item(s)" if backlog_items else "")
             + (f", {len(loops)} loop(s) suppressed" if loops else "")
-        ) if should_wake else "inbox empty, no changelog change, silence-ok",
+        ) if should_wake else "inbox empty, no changelog change, backlog empty, silence-ok",
         "version": version,
         "changelog_new_since": cl_new,
         "inbox": inbox,
         "obligations": obligations,
+        "backlog_items": backlog_items,
         "loops_detected": loops,
         "last_run_sha": state.get("last_sha"),
         "current_sha": current_sha,

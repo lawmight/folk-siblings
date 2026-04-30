@@ -10,3 +10,8 @@ __pycache__/
 # editor cruft
 *.swp
 .DS_Store
+
+# runtime logs (webhook inbox daemon, etc.) — local-only, not protocol
+state/inbox-*.log
+state/inbox-*.stdout.log
+state/inbox-watchdog.log

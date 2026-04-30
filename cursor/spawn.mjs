@@ -100,11 +100,11 @@ try {
 
   const run = await agent.send(args.prompt);
 
-  let pr_url = null;
-  try {
-    const info = await Agent.getRun(run.id, { runtime: "cloud", agentId: agent.id });
-    pr_url = info?.pr_url ?? info?.pullRequestUrl ?? null;
-  } catch (_) { /* ignore */ }
+  // pr_url is always null at spawn. cursor cloud creates the PR asynchronously
+  // after the agent's first commits. ames checker runs cursor/poll_pr.mjs on
+  // rows with status=spawned pr_url=null to resolve it and flip to
+  // awaiting-review. per kit review 2026-04-30T08:22Z, fix 1.
+  const pr_url = null;
 
   const summary = {
     ok: true,

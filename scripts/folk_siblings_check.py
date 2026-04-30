@@ -229,6 +229,14 @@ def silence_ok_commit():
 def main():
     # 0. heartbeat FIRST, unconditionally. survives every other kind of breakage.
     sib_core.tick_alive(SELF)
+    # Stage the heartbeat immediately so `git pull --rebase` below doesn't refuse
+    # with "You have unstaged changes". Staged files are fine; only unstaged break
+    # rebase. Keeps sib_core pure (no git ops inside the primitive) while
+    # preserving the unconditional-first-heartbeat invariant.
+    # fail-loud: staging failure must not be swallowed, it means fs/repo is broken.
+    subprocess.run(
+        ["git", "add", f"state/heartbeat-{SELF}.txt"], cwd=REPO, check=True
+    )
 
     # 1. pull
     current_sha = git_pull_or_escalate()

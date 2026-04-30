@@ -21,7 +21,7 @@ ames runs cursor/spawn.mjs --repo URL --prompt "..."
         |
         +-- calls @cursor/sdk Agent.create + agent.send
         +-- cursor cloud agent opens PR when ready
-        +-- appends row to cursor/cursor-runs.md (log only)
+        +-- appends row to cursor/cursor-runs.json (log only)
         +-- appends owner=kit kind=cursor-review task to cronjobs.json
         |
         v
@@ -51,8 +51,11 @@ tom merges (or declines). entry archived in cursor-runs.md.
   enqueues kit review task.
 - `stream.mjs` — attach to a running run by `agent_id` + `run_id`, tail events.
 - `review.md` — kit's checklist and mandatory VERIFY schema.
-- `cursor-runs.md` — read-only log of runs. wake source is cronjobs.json, not
-  this file.
+- `cursor-runs.json` — structured log of runs (schema_version 0.4). wake
+  source is cronjobs.json, not this file. ames writes rows at spawn (status
+  spawned) and flips to awaiting-review once poll_pr.mjs resolves pr_url.
+- `poll_pr.mjs` — polls Agent.getRun with backoff until pr_url resolves or
+  run ends. ames checker invokes for rows with status=spawned pr_url=null.
 - `package.json` — ESM, depends on @cursor/sdk.
 
 ## env
@@ -93,6 +96,11 @@ node cursor/spawn.mjs \
 inspect queue for pending kit reviews:
 ```
 jq '.tasks[] | select(.kind=="cursor-review" and .status=="todo")' cronjobs.json
+```
+
+inspect cursor runs log:
+```
+jq '.runs[] | select(.status=="spawned" or .status=="awaiting-review")' cursor/cursor-runs.json
 ```
 
 ## status

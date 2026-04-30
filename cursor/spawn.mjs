@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
 const QUEUE_PATH = path.join(REPO_ROOT, "cronjobs.json");
-const RUNS_LOG = path.join(__dirname, "cursor-runs.md");
+const RUNS_LOG = path.join(__dirname, "cursor-runs.json");
 
 const { values: args } = parseArgs({
   options: {
@@ -73,17 +73,29 @@ function enqueueReview({ slug, run_id, agent_id, pr_url, repo, prompt }) {
 }
 
 function appendRunsLog({ slug, run_id, agent_id, pr_url, repo, prompt }) {
-  const row = `| ${slug} | kit | awaiting-review | ${run_id} | ${agent_id} | ${pr_url ?? ""} | ${repo} | ${JSON.stringify(prompt).slice(1, -1).slice(0, 60)} | spawned ${new Date().toISOString()} |\n`;
-  const cur = fs.readFileSync(RUNS_LOG, "utf8");
-  if (!cur.includes("| id |")) {
-    fs.appendFileSync(RUNS_LOG, row);
-  } else {
-    const lines = cur.split("\n");
-    const headerIdx = lines.findIndex((l) => l.startsWith("| id |"));
-    const sepIdx = headerIdx + 1;
-    lines.splice(sepIdx + 1, 0, row.trimEnd());
-    fs.writeFileSync(RUNS_LOG, lines.join("\n"));
-  }
+  // atomic read-modify-write of cursor-runs.json.
+  // status starts as 'spawned' (pr_url unknown); ames checker runs poll_pr.mjs
+  // and flips to 'awaiting-review' once pr_url resolves.
+  const raw = fs.readFileSync(RUNS_LOG, "utf8");
+  const doc = JSON.parse(raw);
+  const now = new Date().toISOString();
+  const row = {
+    id: slug,
+    owner: "ames",
+    status: "spawned",
+    run_id,
+    agent_id,
+    pr_url: pr_url ?? null,
+    target_repo: repo,
+    prompt,
+    notes: null,
+    created_at: now,
+    updated_at: now,
+  };
+  doc.runs.push(row);
+  const tmp = RUNS_LOG + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(doc, null, 2) + "\n");
+  fs.renameSync(tmp, RUNS_LOG);
 }
 
 const slug = args.id ?? shortId();

@@ -1,0 +1,14 @@
+{
+  "name": "cursor-pair-v0",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "ames+kit pair-run coordinator on top of @cursor/sdk (draft)",
+  "bin": {
+    "cursor-pair-spawn": "./spawn.mjs",
+    "cursor-pair-stream": "./stream.mjs"
+  },
+  "dependencies": {
+    "@cursor/sdk": "^1.0.8"
+  }
+}

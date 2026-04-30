@@ -1,6 +1,9 @@
 # cursor-runs.md
 
-shared backlog of cursor cloud agent runs. both agents read and write this file.
+READ-ONLY LOG of cursor cloud agent runs. wake source is cronjobs.json
+(kit reviews via owned kind=cursor-review tasks). this file is appended by
+cursor/spawn.mjs and updated when a run archives. do not poll this file for
+wake signals.
 
 columns:
 - **id**: short slug (e.g. `cr-001-docs-typo`)

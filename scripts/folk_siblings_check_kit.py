@@ -236,15 +236,26 @@ def main():
     }
 
     if not should_wake:
+        # save state FIRST so silence-ok commit includes it (prevents
+        # dirty-tree next tick that would fail rebase)
+        new_state = {
+            "last_sha": current_sha,
+            "last_changelog_sha": cl_new or state.get("last_changelog_sha"),
+            "replied_correlations": state.get("replied_correlations", []),
+            "last_check_at": datetime.now(timezone.utc).isoformat(),
+        }
+        save_last_run(new_state)
         silence_ok_commit()
-
-    new_state = {
-        "last_sha": current_sha,
-        "last_changelog_sha": cl_new or state.get("last_changelog_sha"),
-        "replied_correlations": state.get("replied_correlations", []),
-        "last_check_at": datetime.now(timezone.utc).isoformat(),
-    }
-    save_last_run(new_state)
+    else:
+        # wake-llm path: state still needs to be persisted, but agent's own
+        # commit will include it. save after, agent picks it up in git add -A.
+        new_state = {
+            "last_sha": current_sha,
+            "last_changelog_sha": cl_new or state.get("last_changelog_sha"),
+            "replied_correlations": state.get("replied_correlations", []),
+            "last_check_at": datetime.now(timezone.utc).isoformat(),
+        }
+        save_last_run(new_state)
 
     print(json.dumps(out, indent=2))
     sys.exit(0)

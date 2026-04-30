@@ -64,9 +64,17 @@ GIT_EMAIL = "tom.coustols+kit@gmail.com"
 
 
 def run(cmd, cwd=REPO, check=True):
+    # inject git identity into env so rebase/auto-commits don't fail in sandboxes
+    # that ship without a global gitconfig. reserved verbs (user.name/email)
+    # still get overridden on commit via `-c` flags but rebase needs them too.
+    env = dict(os.environ)
+    env.setdefault("GIT_AUTHOR_NAME", GIT_NAME)
+    env.setdefault("GIT_AUTHOR_EMAIL", GIT_EMAIL)
+    env.setdefault("GIT_COMMITTER_NAME", GIT_NAME)
+    env.setdefault("GIT_COMMITTER_EMAIL", GIT_EMAIL)
     r = subprocess.run(
         cmd, cwd=cwd, shell=isinstance(cmd, str),
-        capture_output=True, text=True,
+        capture_output=True, text=True, env=env,
     )
     if check and r.returncode != 0:
         raise RuntimeError(f"cmd failed: {cmd}\nstderr: {r.stderr}")

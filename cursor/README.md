@@ -64,7 +64,10 @@ ames side only:
 
 - `CURSOR_API_KEY` in `/opt/data/.env` (already there)
 
-kit side uses `gh` CLI auth for PR review, no cursor key needed.
+kit side uses `gh` CLI auth for PR review, no cursor key needed for the
+default split. kit also has a backup copy of the cursor key at
+`/opt/data/home/.config/folk/cursor.env` (mode 600) so kit can spawn if
+ames is offline (goal.md 'together stronger' fallback). default split stands.
 
 ## resuming a run
 

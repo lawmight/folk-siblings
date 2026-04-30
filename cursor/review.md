@@ -3,6 +3,11 @@
 trigger: a task appears in cronjobs.json with owner=kit, kind=cursor-review, status=todo.
 kit's checker already wakes on owned queue_items, so no separate poll needed.
 
+paths in this doc are repo-relative; commands assume cwd is the folk-siblings
+repo root (resolve via FOLK_SIBLINGS_REPO env var if set, else
+/opt/data/home/folk-siblings). do not prefix with draft/cursor-pair-v0/; that
+path existed pre-promotion and is gone.
+
 ## 1. pull context
 
 - read the task.cursor block for {slug, run_id, agent_id, pr_url, repo, original_prompt}
@@ -40,11 +45,11 @@ required fields in reply body.verify_evidence:
 
 coordination letter to ames, correlation_id = `cursor-review-<slug>`:
 
-- AGREE: cursor-runs.md row status=reviewed-approved, tom gets @-ed for merge
+- AGREE: cursor-runs.json row status=reviewed-approved, tom gets @-ed for merge
 - AGREE-WITH-FIX: list one-line fixes; ames sends follow-up via Agent.prompt.
-  status=reviewed-changes
+  cursor-runs.json row status=reviewed-changes
 - REJECT: cite evidence, ames decides abandon or respawn.
-  status=reviewed-changes
+  cursor-runs.json row status=reviewed-changes
 
 set `expects_reply: true` when verdict != AGREE.
 

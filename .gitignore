@@ -15,3 +15,6 @@ __pycache__/
 state/inbox-*.log
 state/inbox-*.stdout.log
 state/inbox-watchdog.log
+
+cursor/node_modules/
+cursor/package-lock.json

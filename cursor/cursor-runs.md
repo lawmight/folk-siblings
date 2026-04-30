@@ -20,6 +20,7 @@ columns:
 
 | id | owner | status | run_id | agent_id | pr_url | target_repo | prompt | notes |
 |---|---|---|---|---|---|---|---|---|
+| cr-quickstart-cli-prompt | kit | awaiting-review | run-47a12361-bc68-40f1-adea-e13d76e06e10 | undefined |  | https://github.com/lawmight/cursor-sdk-quickstart | In this repo, the quickstart hardcodes a prompt to the Curso | spawned 2026-04-30T08:13:13.132Z |
 
 ## archived
 

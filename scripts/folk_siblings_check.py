@@ -188,8 +188,46 @@ def detect_loops(inbox, replied_correlations):
     return loops
 
 
+def scan_queue_for_self():
+    """Return list of unblocked tasks from cronjobs.json owned by SELF.
+
+    v0.4 format. Filters to owner in {SELF, "both"} and status in {todo, doing}.
+    Skips quarantined tasks (status=quarantined) and tasks with attempts >= 3.
+    Sorted by priority descending.
+    """
+    cj = REPO / "cronjobs.json"
+    if not cj.exists():
+        return []
+    try:
+        data = json.loads(cj.read_text())
+    except Exception:
+        return []
+    items = []
+    for task in data.get("tasks", []):
+        status = task.get("status", "").lower()
+        owner = task.get("owner", "")
+        attempts = task.get("attempts", 0)
+        if status not in ("todo", "doing"):
+            continue
+        if owner not in (SELF, "both"):
+            continue
+        if attempts >= 3:
+            continue  # quarantined
+        items.append({
+            "id": task.get("id"),
+            "owner": owner,
+            "status": status,
+            "priority": task.get("priority", 0),
+            "attempts": attempts,
+            "task": task.get("instructions", ""),
+        })
+    items.sort(key=lambda x: x["priority"], reverse=True)
+    return items
+
+
 def scan_backlog_for_self():
-    """Return list of unblocked backlog items owned by SELF.
+    """DEPRECATED v0.4: backlog.md replaced by cronjobs.json. Kept for one
+    migration cycle as fallback. Returns [] once backlog.md is deleted.
 
     Parses backlog.md lines matching `- [owner] status: task ...`.
     Filters to owner == SELF (or "both") and status in {todo, doing}.
@@ -222,6 +260,20 @@ def scan_backlog_for_self():
             continue
         items.append({"owner": owner, "status": status, "task": task})
     return items
+
+
+def read_goal():
+    """Return GOAL.md contents for bearings, or empty string if missing.
+
+    Agents read this every GET_BEARINGS step. Tom owns the content.
+    """
+    g = REPO / "GOAL.md"
+    if not g.exists():
+        return ""
+    try:
+        return g.read_text()
+    except Exception:
+        return ""
 
 
 def compute_obligations(inbox, loops):
@@ -295,26 +347,31 @@ def main():
     # 7. obligations (excluding looped)
     obligations = compute_obligations(inbox, loops)
 
-    # 7b. backlog check — if inbox + changelog are both empty, pull from backlog
-    # so we don't just heartbeat forever when letters quiet down.
-    backlog_items = scan_backlog_for_self()
+    # 7b. queue check — v0.4 cronjobs.json has priority, fall back to backlog.md
+    # during migration window so nothing breaks mid-flight.
+    queue_items = scan_queue_for_self()
+    backlog_items = scan_backlog_for_self() if not queue_items else []
+    goal_text = read_goal()
 
-    # decision: wake if any real work. backlog counts as real work.
-    should_wake = bool(obligations) or cl_new is not None or bool(backlog_items)
+    # decision: wake if any real work. queue + backlog + obligations all count.
+    should_wake = bool(obligations) or cl_new is not None or bool(queue_items) or bool(backlog_items)
 
     out = {
         "action": "wake-llm" if should_wake else "silence-ok",
         "summary": (
             f"{len(obligations)} obligation(s)"
             + (f", CHANGELOG updated" if cl_new else "")
+            + (f", {len(queue_items)} queue item(s)" if queue_items else "")
             + (f", {len(backlog_items)} backlog item(s)" if backlog_items else "")
             + (f", {len(loops)} loop(s) suppressed" if loops else "")
-        ) if should_wake else "inbox empty, no changelog change, backlog empty, silence-ok",
+        ) if should_wake else "inbox empty, no changelog change, queue empty, silence-ok",
         "version": version,
         "changelog_new_since": cl_new,
         "inbox": inbox,
         "obligations": obligations,
+        "queue_items": queue_items,
         "backlog_items": backlog_items,
+        "goal_present": bool(goal_text),
         "loops_detected": loops,
         "last_run_sha": state.get("last_sha"),
         "current_sha": current_sha,

@@ -1,0 +1,61 @@
+{
+  "schema_version": "0.4",
+  "description": "Shared task queue for ames + kit. One entry per task. Agents pick highest priority owned-or-both task, execute, verify, record, evaluate, spawn follow-ups, cleanup. See SELF_PROPAGATING_LOOP.md for the canonical loop.",
+  "tasks": [
+    {
+      "id": "task-20260430-001",
+      "owner": "kit",
+      "priority": 80,
+      "status": "todo",
+      "attempts": 0,
+      "parent_id": null,
+      "created_at": "2026-04-30T07:38:00Z",
+      "instructions": "Mirror backlog-first logic in folk_siblings_check_kit.py. Match f2cd003 on ames side: scan_backlog_for_self (now scan_queue_for_self against cronjobs.json), include queue_items in checker output, wake LLM if any owned items exist. Note: format changed from backlog.md to cronjobs.json per v0.4. Read SELF_PROPAGATING_LOOP.md first.",
+      "budget_tokens": 20000
+    },
+    {
+      "id": "task-20260430-002",
+      "owner": "kit",
+      "priority": 70,
+      "status": "todo",
+      "attempts": 0,
+      "parent_id": null,
+      "created_at": "2026-04-30T07:38:00Z",
+      "instructions": "Mirror folk_siblings_inbox.py as push-triggered wake daemon on kit side. Bind 127.0.0.1:7879 (not 7878 — ames owns that port). Same /health /push /poke routes. Add separate webhook in repo settings pointing at kit's tunnel.",
+      "budget_tokens": 15000
+    },
+    {
+      "id": "task-20260430-003",
+      "owner": "kit",
+      "priority": 60,
+      "status": "todo",
+      "attempts": 0,
+      "parent_id": null,
+      "created_at": "2026-04-30T07:38:00Z",
+      "instructions": "Reply to ames's heartbeat-vs-rebase letter (Option B proposal: stage-after-tick) — either accept and implement, or counter-propose. See read/ames/20260430T044446Z__kit__ames__ack__option-b-agreed.json for your prior ack; the implementation still needs landing.",
+      "budget_tokens": 15000
+    },
+    {
+      "id": "task-20260430-004",
+      "owner": "both",
+      "priority": 90,
+      "status": "todo",
+      "attempts": 0,
+      "parent_id": null,
+      "created_at": "2026-04-30T07:38:00Z",
+      "instructions": "Add VERIFY step to folk_siblings_check.py (ames side) and folk_siblings_check_kit.py (kit side). After EXECUTE, require concrete evidence of success (tool result, HTTP status, file diff, test pass) before marking task done. If no evidence, increment attempts, requeue with lower priority or quarantine at >=3 attempts. See skill autonomous-ai-agents/autonomous-agent-loop.",
+      "budget_tokens": 25000
+    },
+    {
+      "id": "task-20260430-005",
+      "owner": "both",
+      "priority": 40,
+      "status": "todo",
+      "attempts": 0,
+      "parent_id": null,
+      "created_at": "2026-04-30T07:38:00Z",
+      "instructions": "After 24h clean observation window on v0.3 bilateral loop, promote draft/0.3/sib_core.py to top-level, bump VERSION markers. Window started 2026-04-30 ~06:28Z, so ready after 2026-05-01 06:28Z.",
+      "budget_tokens": 10000
+    }
+  ]
+}

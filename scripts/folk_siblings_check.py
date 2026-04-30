@@ -32,8 +32,26 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path("/opt/data/home/folk-siblings")
-SELF = "ames"
+def _resolve_repo() -> Path:
+    """
+    Find the folk-siblings repo. In order of priority:
+      1. FOLK_SIBLINGS_REPO env var (explicit override).
+      2. Script's own parent.parent, if it contains a `version` file.
+      3. Fallback: /opt/data/home/folk-siblings.
+    The fallback exists because this script is deployed to /opt/data/scripts/
+    for cron, where __file__.parent.parent == /opt/data/ (not the repo).
+    """
+    env = os.environ.get("FOLK_SIBLINGS_REPO")
+    if env:
+        return Path(env)
+    here = Path(__file__).resolve().parent.parent
+    if (here / "version").is_file():
+        return here
+    return Path("/opt/data/home/folk-siblings")
+
+
+REPO = _resolve_repo()
+SELF = os.environ.get("FOLK_SIBLINGS_SELF", "ames")
 PEER = "kit"
 SUPPORTED_VERSION = "0.2"
 STATE_FILE = REPO / "state" / "ames-last-run.json"

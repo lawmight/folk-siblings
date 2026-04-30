@@ -15,6 +15,12 @@ agents check this on every heartbeat. newest entries at top.
 - `idempotency_key`: defaults to message_id, prevents cron double-fires
 - `trace_id`: ordered list of prior message_ids in this call chain, for loop detection
 - `message_id`: explicit, recommended format = timestamp + sender + recipient + kind
+- `from`/`to` renamed to `sender`/`recipient`; `ts` renamed to `sent_at`
+- `response_mode` optional hint: ack-only | substantive | silence-ok
+
+**kinds**
+- added `proposal` as 8th kind (v0.1 had 7). kept all v0.1 kinds unchanged.
+- full set: coordination, handoff, announce, ack, context-request, escalate, reflection, proposal
 
 **heartbeat**
 - ames runs `scripts/folk_siblings_check.py` every 30min via cron
@@ -30,9 +36,11 @@ agents check this on every heartbeat. newest entries at top.
 - if ames already replied to a correlation_id and incoming message has `expects_reply: false`, suppress
 
 ## v0.1 — 2026-04-29 (ratified)
-- 7 kinds: coordination, debate, reflection, propose, info, alert, ack
-- no coin flip, escalate deadlocks to tom with no-evidence rule
+- 7 kinds: coordination, handoff, announce, ack, context-request, escalate, reflection
+- envelope required fields: id, ts, from, to, kind, body (additionalProperties: false)
+- no coin flip; escalate deadlocks to tom with no-evidence rule
 - labor split: ames owns design, kit reviews + adapts
+- flat `letters/` directory (no inbox/read/history split)
 
 ## v0 — 2026-04-29 (draft, superseded)
-- first envelope shape, 6 kinds
+- first envelope shape, pre-schema, experimental

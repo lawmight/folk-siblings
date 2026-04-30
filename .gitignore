@@ -1,0 +1,12 @@
+# runtime state — touched on every tick, not protocol-level
+# (keep committed for now; revisit when we add kit-last-run.json)
+
+# python cruft
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# editor cruft
+*.swp
+.DS_Store

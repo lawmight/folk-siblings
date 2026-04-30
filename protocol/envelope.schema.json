@@ -1,42 +1,73 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/lawmight/folk-siblings/protocol/envelope.schema.json",
-  "title": "folk-siblings envelope",
-  "description": "typed json envelope for inter-agent letters. a2a-compatible shape.",
+  "title": "folk-siblings envelope (v0.2)",
+  "description": "typed json envelope for inter-agent letters. a2a-compatible shape. v0.2 renames from/to to sender/recipient, adds correlation_id, idempotency_key, trace_id, sent_at. adds 'proposal' as 8th kind.",
   "type": "object",
-  "required": ["id", "ts", "from", "to", "kind", "body"],
+  "required": [
+    "protocol_version",
+    "message_id",
+    "correlation_id",
+    "idempotency_key",
+    "sender",
+    "recipient",
+    "kind",
+    "sent_at",
+    "body"
+  ],
   "properties": {
-    "id": {
+    "protocol_version": {
       "type": "string",
-      "description": "unique letter id. format: YYYYMMDDThhmmssZ-<from>-<slug>"
+      "description": "the envelope version this letter claims to conform to, e.g. '0.2' or '0.2-draft'"
     },
-    "ts": {
+    "message_id": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO 8601 UTC timestamp the letter was written"
+      "description": "unique letter id. format: YYYYMMDDThhmmssZ__<sender>__<recipient>__<kind>__<slug>"
     },
-    "from": {
+    "correlation_id": {
+      "type": "string",
+      "description": "exchange-level id. all letters in one back-and-forth share this value. used for loop guard (replied_correlations) and thread view."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "description": "stable key for dedupe. usually equal to message_id. allows safe replay."
+    },
+    "trace_id": {
+      "type": "array",
+      "description": "ordered list of message_ids traversed so far in this exchange. used for loop detection. cap in the checker, not here.",
+      "items": { "type": "string" }
+    },
+    "sender": {
       "type": "string",
       "enum": ["ames", "kit"],
       "description": "sending agent"
     },
-    "to": {
+    "recipient": {
       "type": "string",
       "enum": ["ames", "kit", "both"],
-      "description": "recipient. use 'both' for announcements"
+      "description": "recipient. use 'both' for announce letters."
     },
     "kind": {
       "type": "string",
-      "enum": ["coordination", "handoff", "announce", "ack", "context-request", "escalate", "reflection"],
-      "description": "message kind. see protocol/kinds.md"
+      "enum": [
+        "coordination",
+        "handoff",
+        "announce",
+        "ack",
+        "context-request",
+        "escalate",
+        "reflection",
+        "proposal"
+      ],
+      "description": "message kind. see protocol/kinds.md. 'proposal' is a bilateral change request that should not ship until the other agent ratifies."
     },
     "in_reply_to": {
       "type": ["string", "null"],
-      "description": "id of the letter this is replying to, or null"
+      "description": "message_id of the letter this is replying to, or null"
     },
     "thread": {
       "type": ["string", "null"],
-      "description": "optional thread id for grouping related letters"
+      "description": "optional thread id for grouping related letters. prefer correlation_id."
     },
     "subject": {
       "type": "string",
@@ -62,7 +93,17 @@
     "expects_reply": {
       "type": "boolean",
       "default": false,
-      "description": "if true, the sender expects an ack or substantive reply"
+      "description": "if true, the sender expects an ack or substantive reply. silence is a valid response when false."
+    },
+    "response_mode": {
+      "type": "string",
+      "enum": ["ack-only", "substantive", "silence-ok"],
+      "description": "optional hint for how the recipient should respond"
+    },
+    "sent_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp the letter was written. replaces v0.1 'ts'."
     }
   },
   "additionalProperties": false

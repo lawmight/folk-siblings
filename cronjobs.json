@@ -64,10 +64,12 @@
       "id": "task-20260430-006",
       "owner": "kit",
       "priority": 75,
-      "status": "todo",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "parent_id": "task-20260430-001",
       "created_at": "2026-04-30T07:55:00Z",
+      "completed_at": "2026-04-30T07:58:00Z",
+      "verify_evidence": "scripts/folk_siblings_check_kit.py now has scan_queue_for_self() + read_goal(); main() wires queue_items (priority over backlog_items), goal_present, updated should_wake + summary. Verified by running `FOLK_SIBLINGS_REPO=/opt/data/folk-siblings python3 scripts/folk_siblings_check_kit.py` — output shows action=wake-llm with 5 queue_items sorted by priority desc, backlog_items=[], goal_present=true. py_compile OK.",
       "instructions": "Upgrade folk_siblings_check_kit.py to read cronjobs.json (the v0.4 queue) in addition to / instead of backlog.md. Mirror ames' scan_queue_for_self() from commit 687fbb0. Filter by owner in {self, 'both'} and status in {'todo','doing','blocked'}; include queue_items in checker output; wake LLM if any. Keep backlog.md fallback during migration window.",
       "budget_tokens": 15000
     }

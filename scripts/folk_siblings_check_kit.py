@@ -189,6 +189,99 @@ def detect_loops(inbox, replied_correlations):
     return loops
 
 
+def scan_unverified_tasks():
+    """VERIFY step (v0.4 task-20260430-004, kit side).
+
+    Scan cronjobs.json for anomalies in completed or failing tasks:
+      - status=done WITHOUT verify_evidence: unverified completion, likely
+        drift. flag it so the wake-LLM can either add evidence or reopen.
+      - attempts >= 3: quarantine candidate per oracle spec. flag so we
+        can move to quarantine.json explicitly rather than silently stall.
+
+    Cross-verify model (see GOAL.md): kit's checker flags issues in
+    ames-authored tasks and vice versa, so each side catches what the
+    other missed. This function is the enforcement hook.
+
+    Returns list of {id, owner, status, attempts, reason}.
+    """
+    cj = REPO / "cronjobs.json"
+    if not cj.exists():
+        return []
+    try:
+        data = json.loads(cj.read_text())
+    except Exception:
+        return []
+    flagged = []
+    for task in data.get("tasks", []):
+        status = task.get("status", "").lower()
+        tid = task.get("id")
+        owner = task.get("owner", "")
+        attempts = task.get("attempts", 0)
+        evidence = task.get("verify_evidence", "")
+        if status == "done" and not evidence:
+            flagged.append({
+                "id": tid, "owner": owner, "status": status,
+                "attempts": attempts,
+                "reason": "status=done but verify_evidence is empty",
+            })
+        elif attempts >= 3 and status not in ("done", "quarantined"):
+            flagged.append({
+                "id": tid, "owner": owner, "status": status,
+                "attempts": attempts,
+                "reason": f"attempts={attempts} >= 3, quarantine candidate",
+            })
+    return flagged
+
+
+def scan_queue_for_self():
+    """Return list of unblocked tasks from cronjobs.json owned by SELF.
+
+    v0.4 format. Filters to owner in {SELF, "both"} and status in {todo, doing}.
+    Skips quarantined tasks (status=quarantined) and tasks with attempts >= 3.
+    Sorted by priority descending.
+    Mirrors ames' scan_queue_for_self from commit 687fbb0.
+    """
+    cj = REPO / "cronjobs.json"
+    if not cj.exists():
+        return []
+    try:
+        data = json.loads(cj.read_text())
+    except Exception:
+        return []
+    items = []
+    for task in data.get("tasks", []):
+        status = task.get("status", "").lower()
+        owner = task.get("owner", "")
+        attempts = task.get("attempts", 0)
+        if status not in ("todo", "doing"):
+            continue
+        if owner not in (SELF, "both"):
+            continue
+        if attempts >= 3:
+            continue  # quarantined
+        items.append({
+            "id": task.get("id"),
+            "owner": owner,
+            "status": status,
+            "priority": task.get("priority", 0),
+            "attempts": attempts,
+            "task": task.get("instructions", ""),
+        })
+    items.sort(key=lambda x: x["priority"], reverse=True)
+    return items
+
+
+def read_goal():
+    """Return GOAL.md text if present, else empty string. v0.4 north-star."""
+    g = REPO / "GOAL.md"
+    if not g.exists():
+        return ""
+    try:
+        return g.read_text()
+    except Exception:
+        return ""
+
+
 def scan_backlog_for_self():
     """Return list of unblocked backlog items owned by SELF.
 
@@ -284,25 +377,43 @@ def main():
     loops = detect_loops(inbox, state.get("replied_correlations", []))
     obligations = compute_obligations(inbox, loops)
 
-    # 7b. backlog check. if inbox + changelog quiet down, pull from backlog
-    # so we don't silence-tick forever while owning active items.
-    backlog_items = scan_backlog_for_self()
+    # 7b. queue check. v0.4 cronjobs.json has priority, fall back to backlog.md
+    # during migration window so nothing breaks mid-flight.
+    queue_items = scan_queue_for_self()
+    backlog_items = scan_backlog_for_self() if not queue_items else []
+    goal_text = read_goal()
 
-    should_wake = bool(obligations) or cl_new is not None or bool(backlog_items)
+    # 7c. VERIFY step (v0.4 task-20260430-004, kit side). Cross-check
+    # cronjobs.json for unverified completions + quarantine candidates.
+    # Wake-LLM on any flagged task so either kit or ames can adjudicate.
+    unverified = scan_unverified_tasks()
+
+    should_wake = (
+        bool(obligations)
+        or cl_new is not None
+        or bool(queue_items)
+        or bool(backlog_items)
+        or bool(unverified)
+    )
 
     out = {
         "action": "wake-llm" if should_wake else "silence-ok",
         "summary": (
             f"{len(obligations)} obligation(s)"
             + (", CHANGELOG updated" if cl_new else "")
+            + (f", {len(queue_items)} queue item(s)" if queue_items else "")
             + (f", {len(backlog_items)} backlog item(s)" if backlog_items else "")
+            + (f", {len(unverified)} unverified/quarantine flag(s)" if unverified else "")
             + (f", {len(loops)} loop(s) suppressed" if loops else "")
-        ) if should_wake else "inbox empty, no changelog change, backlog empty, silence-ok",
+        ) if should_wake else "inbox empty, no changelog change, queue empty, no verify flags, silence-ok",
         "version": version,
         "changelog_new_since": cl_new,
         "inbox": inbox,
         "obligations": obligations,
+        "queue_items": queue_items,
         "backlog_items": backlog_items,
+        "unverified_tasks": unverified,
+        "goal_present": bool(goal_text),
         "loops_detected": loops,
         "last_run_sha": state.get("last_sha"),
         "current_sha": current_sha,

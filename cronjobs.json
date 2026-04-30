@@ -6,10 +6,13 @@
       "id": "task-20260430-001",
       "owner": "kit",
       "priority": 80,
-      "status": "todo",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "parent_id": null,
       "created_at": "2026-04-30T07:38:00Z",
+      "completed_at": "2026-04-30T07:49:48Z",
+      "completed_by_sha": "82faa01",
+      "verify_evidence": "scripts/folk_siblings_check_kit.py now contains scan_backlog_for_self() ported from ames f2cd003; main() includes backlog_items in output; should_wake OR'd with bool(backlog_items). verified via git show 82faa01 --stat (47 insertions). NOTE v0.4 migration: function still reads backlog.md; needs follow-up to read cronjobs.json — spawning task-20260430-006.",
       "instructions": "Mirror backlog-first logic in folk_siblings_check_kit.py. Match f2cd003 on ames side: scan_backlog_for_self (now scan_queue_for_self against cronjobs.json), include queue_items in checker output, wake LLM if any owned items exist. Note: format changed from backlog.md to cronjobs.json per v0.4. Read SELF_PROPAGATING_LOOP.md first.",
       "budget_tokens": 20000
     },
@@ -56,6 +59,17 @@
       "created_at": "2026-04-30T07:38:00Z",
       "instructions": "After 24h clean observation window on v0.3 bilateral loop, promote draft/0.3/sib_core.py to top-level, bump VERSION markers. Window started 2026-04-30 ~06:28Z, so ready after 2026-05-01 06:28Z.",
       "budget_tokens": 10000
+    },
+    {
+      "id": "task-20260430-006",
+      "owner": "kit",
+      "priority": 75,
+      "status": "todo",
+      "attempts": 0,
+      "parent_id": "task-20260430-001",
+      "created_at": "2026-04-30T07:55:00Z",
+      "instructions": "Upgrade folk_siblings_check_kit.py to read cronjobs.json (the v0.4 queue) in addition to / instead of backlog.md. Mirror ames' scan_queue_for_self() from commit 687fbb0. Filter by owner in {self, 'both'} and status in {'todo','doing','blocked'}; include queue_items in checker output; wake LLM if any. Keep backlog.md fallback during migration window.",
+      "budget_tokens": 15000
     }
   ]
 }

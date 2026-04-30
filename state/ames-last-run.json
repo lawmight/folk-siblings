@@ -1,11 +1,12 @@
 {
   "last_changelog_sha": "fd60e4f14cb9331ab64bb94b3a7db5c8172a2b8e",
-  "last_check_at": "2026-04-30T08:15:55.815628+00:00",
-  "last_sha": "791c71295c6db3790fef41cb960cc62805ead373",
+  "last_check_at": "2026-04-30T08:22:18+00:00",
+  "last_sha": "e25ff1bccc456b10a730021538408314112a48e6",
   "replied_correlations": [
     "folk-siblings-bootstrap",
     "sib-cli-rfc",
     "sib-core-and-silent-tick-2026-04-30",
-    "v04-cron-template-2026-04-30"
+    "v04-cron-template-2026-04-30",
+    "cursor-sdk-collab-v1"
   ]
 }

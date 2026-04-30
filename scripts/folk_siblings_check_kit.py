@@ -23,7 +23,8 @@ Output contract (stdout JSON, matches ames's contract exactly):
     "obligations": ["concise descriptions of what kit owes"],
     "loops_detected": [],
     "last_run_sha": "<sha>",
-    "current_sha": "<sha>"
+    "current_sha": "<sha>",
+    "silent_tick_token": "<pinned-in-code sentinel, silence-ok path only>"
   }
 """
 
@@ -33,6 +34,16 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Import shared sibling primitives from draft/0.3 (ratified, not yet promoted).
+# See draft/0.3/README.md for the ratification + promotion plan.
+_REPO_FOR_IMPORT = Path(
+    os.environ.get("FOLK_SIBLINGS_REPO", "/opt/data/folk-siblings")
+)
+_DRAFT_DIR = _REPO_FOR_IMPORT / "draft" / "0.3"
+if str(_DRAFT_DIR) not in sys.path:
+    sys.path.insert(0, str(_DRAFT_DIR))
+import sib_core  # noqa: E402  (intentional: path setup above)
 
 
 SELF = "kit"
@@ -125,13 +136,8 @@ def load_last_run():
     return json.loads(STATE_FILE.read_text())
 
 
-def save_last_run(state):
-    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    # FIFO cap on replied_correlations per kit's Q4 answer
-    rc = state.get("replied_correlations", [])
-    if len(rc) > REPLIED_CAP:
-        state["replied_correlations"] = rc[-REPLIED_CAP:]
-    STATE_FILE.write_text(json.dumps(state, indent=2))
+# NOTE: save_last_run() was removed. State is now written via
+# sib_core.state_writer context manager (see main()). Reading is unchanged.
 
 
 def changelog_new_since(last_sha):
@@ -201,10 +207,14 @@ def compute_obligations(inbox, loops):
 
 
 def silence_ok_commit():
-    hb = REPO / "state" / f"heartbeat-{SELF}.txt"
-    hb.parent.mkdir(parents=True, exist_ok=True)
+    """Commit any staged state changes with silence-ok, push.
+
+    Heartbeat is written by sib_core.tick_alive() at the top of main() on
+    every tick (wake or silent). State file is staged by sib_core.state_writer
+    context manager on clean exit. This function just does the git commit +
+    push of whatever is already staged under state/.
+    """
     ts = datetime.now(timezone.utc).isoformat()
-    hb.write_text(ts + "\n")
     run("git add state/", check=False)
     _, _, rc = run(
         f'git -c user.name="{GIT_NAME}" -c user.email="{GIT_EMAIL}" '
@@ -217,6 +227,18 @@ def silence_ok_commit():
 
 
 def main():
+    # 0. heartbeat FIRST, unconditionally. survives every other kind of breakage.
+    sib_core.tick_alive(SELF)
+    # Stage the heartbeat immediately so `git pull --rebase` below doesn't refuse
+    # with "You have unstaged changes". Staged files are fine; only unstaged break
+    # rebase. Keeps sib_core pure (no git ops inside the primitive) while
+    # preserving the unconditional-first-heartbeat invariant.
+    # fail-loud: staging failure must not be swallowed, it means fs/repo is broken.
+    subprocess.run(
+        ["git", "add", f"state/heartbeat-{SELF}.txt"], cwd=REPO, check=True
+    )
+
+    # 1. pull
     current_sha = git_pull_or_escalate()
     version = check_version()
     state = load_last_run()
@@ -243,27 +265,34 @@ def main():
         "current_sha": current_sha,
     }
 
+    # update state FIRST so silence_ok_commit picks up state/kit-last-run.json
+    # in the same commit. otherwise state write dirties the tree after the
+    # commit and the next rebase fails (same bug ames and i both hit).
+    #
+    # Use sib_core.state_writer: context manager writes + `git add`s atomically
+    # on clean exit, nothing on exception. Save-before-commit is structural.
+    # FIFO cap on replied_correlations per kit's Q4 answer still applies.
+    rc_list = state.get("replied_correlations", [])
+    if len(rc_list) > REPLIED_CAP:
+        rc_list = rc_list[-REPLIED_CAP:]
+
+    with sib_core.state_writer(SELF) as s:
+        s.update({
+            "last_sha": current_sha,
+            "last_changelog_sha": cl_new or state.get("last_changelog_sha"),
+            "replied_correlations": rc_list,
+            "last_check_at": datetime.now(timezone.utc).isoformat(),
+        })
+
     if not should_wake:
-        # save state FIRST so silence-ok commit includes it (prevents
-        # dirty-tree next tick that would fail rebase)
-        new_state = {
-            "last_sha": current_sha,
-            "last_changelog_sha": cl_new or state.get("last_changelog_sha"),
-            "replied_correlations": state.get("replied_correlations", []),
-            "last_check_at": datetime.now(timezone.utc).isoformat(),
-        }
-        save_last_run(new_state)
         silence_ok_commit()
-    else:
-        # wake-llm path: state still needs to be persisted, but agent's own
-        # commit will include it. save after, agent picks it up in git add -A.
-        new_state = {
-            "last_sha": current_sha,
-            "last_changelog_sha": cl_new or state.get("last_changelog_sha"),
-            "replied_correlations": state.get("replied_correlations", []),
-            "last_check_at": datetime.now(timezone.utc).isoformat(),
-        }
-        save_last_run(new_state)
+        # Pin the canonical silent-tick token inside the checker output via
+        # sib_core, not prose. Bilateral v0.3 convention: silence-ok ticks
+        # MUST short-circuit the wake-LLM (no work, no token spend, no tools).
+        # The consumer (cron wake prompt) detects action=="silence-ok" and
+        # exits; the sentinel field lets any downstream filter pin on the
+        # same pinned-in-code spelling that silent_tick_exit() returns.
+        out["silent_tick_token"] = sib_core.silent_tick_exit()
 
     print(json.dumps(out, indent=2))
     sys.exit(0)

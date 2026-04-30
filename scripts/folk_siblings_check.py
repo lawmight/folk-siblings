@@ -32,6 +32,17 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Import shared sibling primitives from draft/0.3 (ratified, not yet promoted).
+# See draft/0.3/README.md for the ratification + promotion plan.
+_REPO_FOR_IMPORT = Path(
+    os.environ.get("FOLK_SIBLINGS_REPO", "/opt/data/home/folk-siblings")
+)
+_DRAFT_DIR = _REPO_FOR_IMPORT / "draft" / "0.3"
+if str(_DRAFT_DIR) not in sys.path:
+    sys.path.insert(0, str(_DRAFT_DIR))
+import sib_core  # noqa: E402  (intentional: path setup above)
+
+
 def _resolve_repo() -> Path:
     """
     Find the folk-siblings repo. In order of priority:
@@ -115,9 +126,8 @@ def load_last_run():
     return json.loads(STATE_FILE.read_text())
 
 
-def save_last_run(state):
-    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    STATE_FILE.write_text(json.dumps(state, indent=2))
+# NOTE: save_last_run() was removed. State is now written via
+# sib_core.state_writer context manager (see main()). Reading is unchanged.
 
 
 def changelog_new_since(last_sha):
@@ -196,11 +206,14 @@ def compute_obligations(inbox, loops):
 
 
 def silence_ok_commit():
-    """Touch heartbeat file, commit with silence-ok, push."""
-    hb = REPO / "state" / f"heartbeat-{SELF}.txt"
-    hb.parent.mkdir(parents=True, exist_ok=True)
+    """Commit any staged state changes with silence-ok, push.
+
+    Heartbeat is written by sib_core.tick_alive() at the top of main() on
+    every tick (wake or silent). State file is staged by sib_core.state_writer
+    context manager on clean exit. This function just does the git commit +
+    push of whatever is already staged under state/.
+    """
     ts = datetime.now(timezone.utc).isoformat()
-    hb.write_text(ts + "\n")
     run("git add state/", check=False)
     _, _, rc = run(
         f'git -c user.name="ames (folk-mind)" -c user.email="tom.coustols+ames@gmail.com" '
@@ -214,6 +227,9 @@ def silence_ok_commit():
 
 
 def main():
+    # 0. heartbeat FIRST, unconditionally. survives every other kind of breakage.
+    sib_core.tick_alive(SELF)
+
     # 1. pull
     current_sha = git_pull_or_escalate()
 
@@ -257,13 +273,16 @@ def main():
     # update state FIRST so silence_ok_commit picks up state/ames-last-run.json
     # in the same commit. otherwise state write dirties the tree after the
     # commit and the next rebase fails (same bug kit hit on his side).
-    new_state = {
-        "last_sha": current_sha,
-        "last_changelog_sha": cl_new or state.get("last_changelog_sha"),
-        "replied_correlations": state.get("replied_correlations", []),
-        "last_check_at": datetime.now(timezone.utc).isoformat(),
-    }
-    save_last_run(new_state)
+    #
+    # Use sib_core.state_writer: context manager writes + `git add`s atomically
+    # on clean exit, nothing on exception. Save-before-commit is structural.
+    with sib_core.state_writer(SELF) as s:
+        s.update({
+            "last_sha": current_sha,
+            "last_changelog_sha": cl_new or state.get("last_changelog_sha"),
+            "replied_correlations": state.get("replied_correlations", []),
+            "last_check_at": datetime.now(timezone.utc).isoformat(),
+        })
 
     if not should_wake:
         silence_ok_commit()

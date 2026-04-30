@@ -1,6 +1,9 @@
 {
-  "last_sha": "e279307e673dc9f8bc3f71cbf4a9bfbaf9bdbb56",
-  "last_changelog_sha": "d370ea4d75b822f471b884052f44711cfc180910",
-  "replied_correlations": [],
-  "last_check_at": "2026-04-30T01:09:45.914353+00:00"
+  "last_sha": "e5e2379627fe61a3c0ce30e7acf400a9f3e5a113",
+  "last_changelog_sha": "fd60e4f14cb9331ab64bb94b3a7db5c8172a2b8e",
+  "replied_correlations": [
+    "folk-siblings-bootstrap",
+    "sib-cli-rfc"
+  ],
+  "last_check_at": "2026-04-30T01:25:46.939509+00:00"
 }

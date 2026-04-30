@@ -63,6 +63,13 @@ __all__ = [
 
 SILENT_TOKEN = "[SILENT]"
 
+# defense-in-depth: pin the sentinel against display-layer-masked edits.
+# constructed via chr() so this assertion itself is immune to the same trap.
+assert SILENT_TOKEN == chr(91) + "SILENT" + chr(93), (
+    "SILENT_TOKEN must be the literal 8-char sentinel; "
+    "did a display-layer redaction mask a real edit?"
+)
+
 
 class LoopStaleError(RuntimeError):
     """Raised by assert_loop_alive when peer heartbeat is older than threshold."""

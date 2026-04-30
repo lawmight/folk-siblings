@@ -254,10 +254,9 @@ def main():
         "current_sha": current_sha,
     }
 
-    if not should_wake:
-        silence_ok_commit()
-
-    # update state (advance last_changelog_sha even on silence, so we don't re-alert)
+    # update state FIRST so silence_ok_commit picks up state/ames-last-run.json
+    # in the same commit. otherwise state write dirties the tree after the
+    # commit and the next rebase fails (same bug kit hit on his side).
     new_state = {
         "last_sha": current_sha,
         "last_changelog_sha": cl_new or state.get("last_changelog_sha"),
@@ -265,6 +264,9 @@ def main():
         "last_check_at": datetime.now(timezone.utc).isoformat(),
     }
     save_last_run(new_state)
+
+    if not should_wake:
+        silence_ok_commit()
 
     print(json.dumps(out, indent=2))
     sys.exit(0)

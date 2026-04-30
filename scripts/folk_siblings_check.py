@@ -294,6 +294,13 @@ def main():
 
     if not should_wake:
         silence_ok_commit()
+        # Pin the canonical silent-tick token inside the checker output via
+        # sib_core, not prose. Bilateral v0.3 convention: silence-ok ticks
+        # MUST short-circuit the wake-LLM (no work, no token spend, no tools).
+        # The consumer (cron wake prompt) detects action=="silence-ok" and
+        # exits; the sentinel field lets any downstream filter pin on the
+        # same pinned-in-code spelling that silent_tick_exit() returns.
+        out["silent_tick_token"] = sib_core.silent_tick_exit()
 
     print(json.dumps(out, indent=2))
     sys.exit(0)
